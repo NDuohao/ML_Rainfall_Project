@@ -121,13 +121,14 @@ if st.button("🔍 Predict Rainfall"):
     with col_res2:
         st.write("🔄 **Model Comparison (Rain Probability)**")
         # Plot Model Comparison Bar Chart
-        fig_comp, ax_comp = plt.subplots(figsize=(5, 3))
+        fig_comp, ax_comp = plt.subplots(figsize=(4, 2.2))
         bars = ax_comp.bar(
             list(model_probs.keys()),
             [v * 100 for v in model_probs.values()],
             color=["#3498db", "#e74c3c", "#2ecc71"],
         )
-        ax_comp.set_ylabel("Probability (%)")
+        ax_comp.set_ylabel("Probability (%)", fontsize=8)
+        ax_comp.tick_params(axis='both', labelsize=8)
         ax_comp.set_ylim(0, 100)
         for bar in bars:
             yval = bar.get_height()
@@ -137,31 +138,38 @@ if st.button("🔍 Predict Rainfall"):
                 f"{yval:.1f}%",
                 ha="center",
                 va="bottom",
-                fontsize=9,
+                fontsize=8,
             )
-        st.pyplot(fig_comp)
+        st.pyplot(fig_comp, use_container_width=False)
 
 # Model Evaluation Section
 st.markdown("---")
 st.subheader("📊 Model Performance Metrics")
 
 
-def plot_confusion_matrix(cm_data):
-    fig, ax = plt.subplots(figsize=(3.5, 2.5))
+def plot_small_confusion_matrix(cm_data):
+    # 使用限制比例的小尺寸画布
+    fig, ax = plt.subplots(figsize=(2.2, 1.8))
     sns.heatmap(
         cm_data,
         annot=True,
         fmt="d",
         cmap="Blues",
         cbar=False,
+        annot_kws={"size": 8},
         xticklabels=["No", "Yes"],
         yticklabels=["No", "Yes"],
         ax=ax,
     )
-    plt.xlabel("Predicted")
-    plt.ylabel("Actual")
-    plt.title("Confusion Matrix")
-    st.pyplot(fig)
+    plt.xlabel("Predicted", fontsize=8)
+    plt.ylabel("Actual", fontsize=8)
+    plt.title("Confusion Matrix", fontsize=9)
+    ax.tick_params(axis='both', labelsize=7)
+    
+    # 嵌套在 Streamlit 列中限制其宽度
+    col_cm, col_empty = st.columns([1, 3])
+    with col_cm:
+        st.pyplot(fig, use_container_width=False)
 
 
 cm_svm = np.array([[1200, 300], [250, 250]])
@@ -178,7 +186,7 @@ with tab_svm:
     col2.metric("Precision", "0.73")
     col3.metric("Recall", "0.52")
     col4.metric("F1 Score", "0.60")
-    plot_confusion_matrix(cm_svm)
+    plot_small_confusion_matrix(cm_svm)
 
 with tab_knn:
     col1, col2, col3, col4 = st.columns(4)
@@ -186,7 +194,7 @@ with tab_knn:
     col2.metric("Precision", "0.71")
     col3.metric("Recall", "0.50")
     col4.metric("F1 Score", "0.59")
-    plot_confusion_matrix(cm_knn)
+    plot_small_confusion_matrix(cm_knn)
 
 with tab_ann:
     col1, col2, col3, col4 = st.columns(4)
@@ -194,4 +202,4 @@ with tab_ann:
     col2.metric("Precision", "0.74")
     col3.metric("Recall", "0.54")
     col4.metric("F1 Score", "0.63")
-    plot_confusion_matrix(cm_ann)
+    plot_small_confusion_matrix(cm_ann)
