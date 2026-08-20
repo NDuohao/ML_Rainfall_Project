@@ -89,13 +89,11 @@ scaled_input = scaler.transform(input_df)
 
 # Prediction Logic
 if st.button("🔍 Predict Rainfall"):
-    # Calculate probabilities across ALL 3 models for comparison
     model_probs = {}
     for name, m in models.items():
         if hasattr(m, "predict_proba"):
             p = m.predict_proba(scaled_input)[0][1]
         else:
-            # Fallback heuristic if probability is disabled
             pred = m.predict(scaled_input)[0]
             p = 0.85 if pred == 1 else 0.15
         model_probs[name] = p
@@ -120,7 +118,6 @@ if st.button("🔍 Predict Rainfall"):
 
     with col_res2:
         st.write("🔄 **Model Comparison (Rain Probability)**")
-        # Plot Model Comparison Bar Chart
         fig_comp, ax_comp = plt.subplots(figsize=(4, 2.2))
         bars = ax_comp.bar(
             list(model_probs.keys()),
@@ -128,7 +125,7 @@ if st.button("🔍 Predict Rainfall"):
             color=["#3498db", "#e74c3c", "#2ecc71"],
         )
         ax_comp.set_ylabel("Probability (%)", fontsize=8)
-        ax_comp.tick_params(axis='both', labelsize=8)
+        ax_comp.tick_params(axis="both", labelsize=8)
         ax_comp.set_ylim(0, 100)
         for bar in bars:
             yval = bar.get_height()
@@ -147,28 +144,37 @@ st.markdown("---")
 st.subheader("📊 Model Performance Metrics")
 
 
-def plot_small_confusion_matrix(cm_data):
-    # 使用限制比例的小尺寸画布
-    fig, ax = plt.subplots(figsize=(2.2, 1.8))
-    sns.heatmap(
-        cm_data,
-        annot=True,
-        fmt="d",
-        cmap="Blues",
-        cbar=False,
-        annot_kws={"size": 8},
-        xticklabels=["No", "Yes"],
-        yticklabels=["No", "Yes"],
-        ax=ax,
-    )
-    plt.xlabel("Predicted", fontsize=8)
-    plt.ylabel("Actual", fontsize=8)
-    plt.title("Confusion Matrix", fontsize=9)
-    ax.tick_params(axis='both', labelsize=7)
-    
-    # 嵌套在 Streamlit 列中限制其宽度
-    col_cm, col_empty = st.columns([1, 3])
-    with col_cm:
+def render_model_performance(accuracy, precision, recall, f1, cm_data):
+    col_left, col_right = st.columns([1.2, 1])
+
+    # 左侧：2x2 方阵形式放置 4 个核心指标
+    with col_left:
+        m_col1, m_col2 = st.columns(2)
+        m_col1.metric("Accuracy", accuracy)
+        m_col2.metric("Precision", precision)
+
+        m_col3, m_col4 = st.columns(2)
+        m_col3.metric("Recall", recall)
+        m_col4.metric("F1 Score", f1)
+
+    # 右侧：展示完美匹配比例的混淆矩阵图
+    with col_right:
+        fig, ax = plt.subplots(figsize=(3, 2.2))
+        sns.heatmap(
+            cm_data,
+            annot=True,
+            fmt="d",
+            cmap="Blues",
+            cbar=False,
+            annot_kws={"size": 10},
+            xticklabels=["No", "Yes"],
+            yticklabels=["No", "Yes"],
+            ax=ax,
+        )
+        plt.xlabel("Predicted", fontsize=9)
+        plt.ylabel("Actual", fontsize=9)
+        plt.title("Confusion Matrix", fontsize=10)
+        ax.tick_params(axis="both", labelsize=8)
         st.pyplot(fig, use_container_width=False)
 
 
@@ -181,25 +187,10 @@ tab_svm, tab_knn, tab_ann = st.tabs(
 )
 
 with tab_svm:
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Accuracy", "84.80%")
-    col2.metric("Precision", "0.73")
-    col3.metric("Recall", "0.52")
-    col4.metric("F1 Score", "0.60")
-    plot_small_confusion_matrix(cm_svm)
+    render_model_performance("84.80%", "0.73", "0.52", "0.60", cm_svm)
 
 with tab_knn:
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Accuracy", "83.50%")
-    col2.metric("Precision", "0.71")
-    col3.metric("Recall", "0.50")
-    col4.metric("F1 Score", "0.59")
-    plot_small_confusion_matrix(cm_knn)
+    render_model_performance("83.50%", "0.71", "0.50", "0.59", cm_knn)
 
 with tab_ann:
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Accuracy", "85.20%")
-    col2.metric("Precision", "0.74")
-    col3.metric("Recall", "0.54")
-    col4.metric("F1 Score", "0.63")
-    plot_small_confusion_matrix(cm_ann)
+    render_model_performance("85.20%", "0.74", "0.54", "0.63", cm_ann)
