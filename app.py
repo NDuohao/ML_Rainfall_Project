@@ -12,16 +12,23 @@ st.write(
     "Predict whether it will rain tomorrow based on weather metrics using Machine Learning models."
 )
 
-# Load Scaler and Feature Names
-scaler = joblib.load("models/scaler.pkl")
-feature_names = joblib.load("models/feature_names.pkl")
+# 1. Load Scaler and Feature Names
+@st.cache_resource
+def load_resources():
+    scaler = joblib.load("models/scaler.pkl")
+    feature_names = joblib.load("models/feature_names.pkl")
+    models = {
+        "Member 1: KNN": joblib.load("models/knn_model.pkl"),
+        "Member 2: SVM": joblib.load("models/svm_model.pkl"),
+        "Member 3: ANN": joblib.load("models/ann_model.pkl"),
+    }
+    return scaler, feature_names, models
 
-# Load Models
-models = {
-    "Member 1: KNN": joblib.load("models/knn_model.pkl"),
-    "Member 2: SVM": joblib.load("models/svm_model.pkl"),
-    "Member 3: ANN": joblib.load("models/ann_model.pkl"),
-}
+try:
+    scaler, feature_names, models = load_resources()
+except Exception as e:
+    st.error(f"Error loading models or resources: {e}")
+    st.stop()
 
 selected_model_name = st.selectbox(
     "Select Machine Learning Model", list(models.keys())
@@ -75,26 +82,12 @@ scaled_input = scaler.transform(input_df)
 # Prediction Button
 if st.button("Predict Rainfall"):
     prediction = model.predict(scaled_input)[0]
-    prob = (
-        model.predict_proba(scaled_input)[0][1]
-        if hasattr(model, "predict_proba")
-        else None
-    )
-
+    
     st.subheader("Prediction Result")
     if prediction == 1:
-        st.error(
-            f"🌧️ **Rain Tomorrow: YES**"
-            + (f" (Probability: {prob*100:.1f}%)" if prob is not None else "")
-        )
+        st.error("🌧️ **Rain Tomorrow: YES**")
     else:
-        st.success(
-            f"☀️ **Rain Tomorrow: NO**"
-            + (
-                f" (Probability: {(1-prob)*100:.1f}%)"
-                if prob is not None else ""
-            )
-        )
+        st.success("☀️ **Rain Tomorrow: NO**")
 
 # Model Performance Section (Tabs + Big Metrics Layout)
 st.markdown("---")
