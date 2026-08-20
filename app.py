@@ -1,12 +1,16 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
 import joblib
+import numpy as np
+import pandas as pd
+import streamlit as st
 
-st.set_page_config(page_title="Smart Rainfall Prediction", page_icon="🌧️")
+st.set_page_config(
+    page_title="Smart Rainfall Prediction System", page_icon="🌧️"
+)
 
 st.title("🌧️ Smart Rainfall Prediction System")
-st.write("Predict whether it will rain tomorrow based on weather metrics using Machine Learning models.")
+st.write(
+    "Predict whether it will rain tomorrow based on weather metrics using Machine Learning models."
+)
 
 # Load Scaler and Feature Names
 scaler = joblib.load("models/scaler.pkl")
@@ -19,13 +23,14 @@ models = {
     "Member 3: ANN": joblib.load("models/ann_model.pkl"),
 }
 
-selected_model_name = st.selectbox("Select Machine Learning Model", list(models.keys()))
+selected_model_name = st.selectbox(
+    "Select Machine Learning Model", list(models.keys())
+)
 model = models[selected_model_name]
 
 st.sidebar.header("Input Weather Parameters")
 
-# Sidebar Inputs
-location = st.sidebar.selectbox("Location", ["Canberra", "Sydney", "Melbourne", "Brisbane", "Perth"])
+# Sidebar Inputs (No Location field)
 min_temp = st.sidebar.slider("Min Temperature (°C)", -5.0, 40.0, 12.0)
 max_temp = st.sidebar.slider("Max Temperature (°C)", 0.0, 50.0, 22.0)
 rainfall = st.sidebar.slider("Rainfall (mm)", 0.0, 100.0, 0.0)
@@ -67,24 +72,53 @@ input_dict["RainToday"] = 1 if rain_today == "Yes" else 0
 input_df = pd.DataFrame([input_dict])
 scaled_input = scaler.transform(input_df)
 
+# Prediction Button
 if st.button("Predict Rainfall"):
     prediction = model.predict(scaled_input)[0]
-    prob = model.predict_proba(scaled_input)[0][1] if hasattr(model, "predict_proba") else None
-    
+    prob = (
+        model.predict_proba(scaled_input)[0][1]
+        if hasattr(model, "predict_proba")
+        else None
+    )
+
     st.subheader("Prediction Result")
     if prediction == 1:
-        st.error(f"🌧️ **Rain Tomorrow: YES**" + (f" (Probability: {prob*100:.1f}%)" if prob is not None else ""))
+        st.error(
+            f"🌧️ **Rain Tomorrow: YES**"
+            + (f" (Probability: {prob*100:.1f}%)" if prob is not None else "")
+        )
     else:
-        st.success(f"☀️ **Rain Tomorrow: NO**" + (f" (Probability: {(1-prob)*100:.1f}%)" if prob is not None else ""))
+        st.success(
+            f"☀️ **Rain Tomorrow: NO**"
+            + (
+                f" (Probability: {(1-prob)*100:.1f}%)"
+                if prob is not None else ""
+            )
+        )
 
-# Evaluation Performance Table
+# Model Performance Section (Tabs + Big Metrics Layout)
 st.markdown("---")
-st.subheader("📊 Model Evaluation Performance")
-perf_data = pd.DataFrame({
-    "Model": ["Member 1 (KNN)", "Member 2 (SVM)", "Member 3 (ANN)"],
-    "Accuracy": [0.835, 0.846, 0.852],
-    "Precision": [0.710, 0.732, 0.742],
-    "Recall": [0.502, 0.515, 0.540],
-    "F1 Score": [0.588, 0.604, 0.625]
-})
-st.dataframe(perf_data, use_container_width=True)
+st.subheader("📊 Model Performance")
+
+tab_svm, tab_knn, tab_ann = st.tabs(["SVM", "KNN", "ANN"])
+
+with tab_svm:
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Accuracy", "84.80%")
+    col2.metric("Precision", "0.73")
+    col3.metric("Recall", "0.52")
+    col4.metric("F1 Score", "0.60")
+
+with tab_knn:
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Accuracy", "83.50%")
+    col2.metric("Precision", "0.71")
+    col3.metric("Recall", "0.50")
+    col4.metric("F1 Score", "0.59")
+
+with tab_ann:
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Accuracy", "85.20%")
+    col2.metric("Precision", "0.74")
+    col3.metric("Recall", "0.54")
+    col4.metric("F1 Score", "0.63")
