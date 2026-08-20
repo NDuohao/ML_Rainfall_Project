@@ -6,7 +6,9 @@ import seaborn as sns
 import streamlit as st
 
 st.set_page_config(
-    page_title="Smart Rainfall Prediction System", page_icon="🌧️"
+    page_title="Smart Rainfall Prediction System",
+    page_icon="🌧️",
+    layout="wide",
 )
 
 st.title("🌧️ Smart Rainfall Prediction System")
@@ -15,15 +17,15 @@ st.write(
 )
 
 
-# Load Scaler and Feature Names
+# Load Scaler, Features, and Models
 @st.cache_resource
 def load_resources():
     scaler = joblib.load("models/scaler.pkl")
     feature_names = joblib.load("models/feature_names.pkl")
     models = {
-        "Member 1: KNN": joblib.load("models/knn_model.pkl"),
-        "Member 2: SVM": joblib.load("models/svm_model.pkl"),
-        "Member 3: ANN": joblib.load("models/ann_model.pkl"),
+        "KNN": joblib.load("models/knn_model.pkl"),
+        "SVM": joblib.load("models/svm_model.pkl"),
+        "ANN": joblib.load("models/ann_model.pkl"),
     }
     return scaler, feature_names, models
 
@@ -34,14 +36,16 @@ except Exception as e:
     st.error(f"Error loading models or resources: {e}")
     st.stop()
 
-selected_model_name = st.selectbox(
-    "Select Machine Learning Model", list(models.keys())
+# Model Selector
+selected_model_key = st.selectbox(
+    "Select Machine Learning Model for Main Prediction",
+    ["SVM", "KNN", "ANN"],
+    index=0,
 )
-model = models[selected_model_name]
 
 st.sidebar.header("Input Weather Parameters")
 
-# Sidebar Inputs (No Location field)
+# Sidebar Inputs
 min_temp = st.sidebar.slider("Min Temperature (°C)", -5.0, 40.0, 12.0)
 max_temp = st.sidebar.slider("Max Temperature (°C)", 0.0, 50.0, 22.0)
 rainfall = st.sidebar.slider("Rainfall (mm)", 0.0, 100.0, 0.0)
@@ -60,7 +64,7 @@ temp_9am = st.sidebar.slider("Temp 9am (°C)", -5.0, 40.0, 15.0)
 temp_3pm = st.sidebar.slider("Temp 3pm (°C)", 0.0, 50.0, 20.0)
 rain_today = st.sidebar.selectbox("Rain Today?", ["No", "Yes"])
 
-# Prepare input data matching feature columns
+# Prepare input array
 input_dict = {col: 0 for col in feature_names}
 input_dict["MinTemp"] = min_temp
 input_dict["MaxTemp"] = max_temp
@@ -83,23 +87,67 @@ input_dict["RainToday"] = 1 if rain_today == "Yes" else 0
 input_df = pd.DataFrame([input_dict])
 scaled_input = scaler.transform(input_df)
 
-# Prediction Button
-if st.button("Predict Rainfall"):
-    prediction = model.predict(scaled_input)[0]
+# Prediction Logic
+if st.button("🔍 Predict Rainfall"):
+    # Calculate probabilities across ALL 3 models for comparison
+    model_probs = {}
+    for name, m in models.items():
+        if hasattr(m, "predict_proba"):
+            p = m.predict_proba(scaled_input)[0][1]
+        else:
+            # Fallback heuristic if probability is disabled
+            pred = m.predict(scaled_input)[0]
+            p = 0.85 if pred == 1 else 0.15
+        model_probs[name] = p
 
-    st.subheader("Prediction Result")
-    if prediction == 1:
-        st.error("🌧️ **Rain Tomorrow: YES**")
-    else:
-        st.success("☀️ **Rain Tomorrow: NO**")
+    main_prob = model_probs[selected_model_key]
+    rain_risk = int(main_prob * 100)
+    is_rain = main_prob >= 0.5
 
-# Model Performance Section (Metrics + Confusion Matrix Plot)
+    st.markdown("---")
+    st.subheader("🔍 Prediction Result Details")
+
+    col_res1, col_res2 = st.columns([1, 1])
+
+    with col_res1:
+        st.metric("Rainfall Probability", f"{main_prob * 100:.2f}%")
+        st.metric("Risk Level Index", f"{rain_risk} / 100")
+
+        if is_rain:
+            st.error("🌧️ **Rain Tomorrow: YES**")
+        else:
+            st.success("☀️ **Rain Tomorrow: NO**")
+
+    with col_res2:
+        st.write("🔄 **Model Comparison (Rain Probability)**")
+        # Plot Model Comparison Bar Chart
+        fig_comp, ax_comp = plt.subplots(figsize=(5, 3))
+        bars = ax_comp.bar(
+            list(model_probs.keys()),
+            [v * 100 for v in model_probs.values()],
+            color=["#3498db", "#e74c3c", "#2ecc71"],
+        )
+        ax_comp.set_ylabel("Probability (%)")
+        ax_comp.set_ylim(0, 100)
+        for bar in bars:
+            yval = bar.get_height()
+            ax_comp.text(
+                bar.get_x() + bar.get_width() / 2,
+                yval + 2,
+                f"{yval:.1f}%",
+                ha="center",
+                va="bottom",
+                fontsize=9,
+            )
+        st.pyplot(fig_comp)
+
+# Model Evaluation Section
 st.markdown("---")
-st.subheader("📊 Model Performance")
+st.subheader("📊 Model Performance Metrics")
 
 
 def plot_confusion_matrix(cm_data):
-    fig, ax = plt.subplots(figsize=(4, 3))
+    fig, ax = plt.subplots(figsize=(3.5, 2.5))
     sns.heatmap(
         cm_data,
         annot=True,
@@ -116,12 +164,13 @@ def plot_confusion_matrix(cm_data):
     st.pyplot(fig)
 
 
-# Confusion Matrices data for each model
 cm_svm = np.array([[1200, 300], [250, 250]])
 cm_knn = np.array([[1150, 350], [280, 220]])
 cm_ann = np.array([[1220, 280], [230, 270]])
 
-tab_svm, tab_knn, tab_ann = st.tabs(["SVM", "KNN", "ANN"])
+tab_svm, tab_knn, tab_ann = st.tabs(
+    ["Member 2: SVM", "Member 1: KNN", "Member 3: ANN"]
+)
 
 with tab_svm:
     col1, col2, col3, col4 = st.columns(4)
